@@ -62,7 +62,7 @@ The stock Control Hub address is already built into Relay:
 On the Linux bridge, run:
 
 ```bash
-git clone https://github.com/Bob-41/Relay.git
+git clone https://github.com/6165-MSET-Cuttlefish/Relay.git
 cd Relay/bridge
 sudo bash install.sh
 ```
@@ -119,7 +119,7 @@ On macOS or Linux, open Terminal. On Windows, open **Git Bash** (not
 PowerShell or Command Prompt), then run:
 
 ```bash
-git clone https://github.com/Bob-41/Relay.git
+git clone https://github.com/6165-MSET-Cuttlefish/Relay.git
 cd Relay/laptop
 bash install.sh
 ```
@@ -155,6 +155,10 @@ After the laptop tunnel is running, open:
 Program & Manage and FTC Dashboard are the same web server on the hub
 (port 8080), so they share one forwarded address - if you're using FTC
 Dashboard, that's the URL to open.
+
+FTC Dashboard's live data (op modes, telemetry, configuration) uses a second
+connection on port 8000, which Relay also forwards. Keep local port 8000 free:
+if another program is using it, the whole tunnel fails to start.
 
 ## Updates
 

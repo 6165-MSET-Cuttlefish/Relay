@@ -8,7 +8,7 @@
 
 set -uo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/Bob-41/Relay/main"
+REPO_RAW="https://raw.githubusercontent.com/6165-MSET-Cuttlefish/Relay/main"
 
 case "$(uname -s)" in
     Darwin) CONFIG_ROOT="${HOME}/.config/adb-tunnel"; LOG_FILE="/tmp/adbtunnel-updater.log" ;;

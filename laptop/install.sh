@@ -91,6 +91,12 @@ if [ "$AUTO" = "1" ]; then
     # this forward existed, same pattern as WEB_LOCAL_PORT above.
     PANELS_WS_LOCAL_PORT="${PANELS_WS_LOCAL_PORT:-8002}"
     PANELS_WS_REMOTE_PORT="${PANELS_WS_REMOTE_PORT:-8002}"
+    # FTC Dashboard's live-data WebSocket. The page itself comes over
+    # WEB_LOCAL_PORT (/dash), but its client always connects to port 8000 on
+    # the page's own hostname, so the local side MUST be 8000. Without it the
+    # page loads but sits on "Op mode controls have not initialized".
+    DASH_WS_LOCAL_PORT="${DASH_WS_LOCAL_PORT:-8000}"
+    DASH_WS_REMOTE_PORT="${DASH_WS_REMOTE_PORT:-8000}"
     section "=== ADB Tunnel auto-update (${REMOTE_HOST}), replaying saved config ==="
     if [ "$AUTH_CHOICE" != "1" ]; then
         warning "Password-auth config found under --auto - this should never happen (password configs aren't supposed to get an updater registered)."
@@ -125,6 +131,9 @@ else
     PANELS_REMOTE_PORT="8001"
     PANELS_WS_LOCAL_PORT="8002"
     PANELS_WS_REMOTE_PORT="8002"
+    # FTC Dashboard WebSocket - local side must stay 8000 (see --auto block).
+    DASH_WS_LOCAL_PORT="8000"
+    DASH_WS_REMOTE_PORT="8000"
 
     echo ""
     important "Auth method:"
@@ -187,6 +196,8 @@ PANELS_LOCAL_PORT="${PANELS_LOCAL_PORT}"
 PANELS_REMOTE_PORT="${PANELS_REMOTE_PORT}"
 PANELS_WS_LOCAL_PORT="${PANELS_WS_LOCAL_PORT}"
 PANELS_WS_REMOTE_PORT="${PANELS_WS_REMOTE_PORT}"
+DASH_WS_LOCAL_PORT="${DASH_WS_LOCAL_PORT}"
+DASH_WS_REMOTE_PORT="${DASH_WS_REMOTE_PORT}"
 AUTH_CHOICE="${AUTH_CHOICE}"
 KEY="${KEY}"
 PASSFILE="${PASSFILE}"
@@ -267,7 +278,7 @@ teardown_previous_install() {
             # lsof here is macOS-only; the Windows equivalent is the PowerShell
             # block further down, which stops ssh.exe for this host before it
             # re-registers.
-            for check_port in "$LOCAL_PORT" "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT"; do
+            for check_port in "$LOCAL_PORT" "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT" "$DASH_WS_LOCAL_PORT"; do
                 for pid in $(lsof -nP -tiTCP:"$check_port" -sTCP:LISTEN 2>/dev/null | sort -u); do
                     name="$(basename "$(ps -p "$pid" -o comm= 2>/dev/null)")"
                     if [ "$name" != "ssh" ]; then
@@ -407,7 +418,7 @@ elif command -v lsof >/dev/null 2>&1; then
 fi
 
 # --- Port conflict check for the web-interface forwards (warn-only, never auto-killed) ---
-for CHECK_PORT in "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT"; do
+for CHECK_PORT in "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT" "$DASH_WS_LOCAL_PORT"; do
     if [ "$PLATFORM" = "windows" ]; then
         if command -v netstat >/dev/null 2>&1 && netstat -ano 2>/dev/null | grep -q ":${CHECK_PORT} .*LISTENING"; then
             important "NOTE: something is on local port $CHECK_PORT already - expected if the old tunnel is still up; it'll be replaced below. If this is the web-interface port and it's a leftover dev server (Tomcat/webpack/etc. commonly squat 8080), pick a different WEB_LOCAL_PORT instead of assuming it's safe to kill."
@@ -489,6 +500,8 @@ GUARD_EOF
         <string>${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT}</string>
         <string>-L</string>
         <string>${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT}</string>
+        <string>-L</string>
+        <string>${DASH_WS_LOCAL_PORT}:${ROBOT_IP}:${DASH_WS_REMOTE_PORT}</string>
         <string>${REMOTE_USER}@${REMOTE_HOST}</string>"
     else
         SSHPASS_BIN="$(command -v sshpass)"
@@ -514,6 +527,8 @@ GUARD_EOF
         <string>${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT}</string>
         <string>-L</string>
         <string>${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT}</string>
+        <string>-L</string>
+        <string>${DASH_WS_LOCAL_PORT}:${ROBOT_IP}:${DASH_WS_REMOTE_PORT}</string>
         <string>${REMOTE_USER}@${REMOTE_HOST}</string>"
     fi
 
@@ -719,7 +734,7 @@ PRUNE_EOF
 echo [%date% %time%] starting tunnel to ${REMOTE_HOST} >> "${LOG_FILE_WIN}"
 ${PRUNE_LINE}
 ${GUARD_LINE}
-"${SSH_BIN_WIN}" -i "${WIN_KEY}" -N -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} >> "${LOG_FILE_WIN}" 2>&1
+"${SSH_BIN_WIN}" -i "${WIN_KEY}" -N -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} -L ${DASH_WS_LOCAL_PORT}:${ROBOT_IP}:${DASH_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} >> "${LOG_FILE_WIN}" 2>&1
 echo [%date% %time%] tunnel exited, restarting in 5s >> "${LOG_FILE_WIN}"
 timeout /t 5 /nobreak >nul
 goto loop
@@ -733,7 +748,7 @@ EOF
 echo [%date% %time%] starting tunnel to ${REMOTE_HOST} >> "${LOG_FILE_WIN}"
 ${PRUNE_LINE}
 ${GUARD_LINE}
-"${SSHPASS_BIN_WIN}" -f "${WIN_PASSFILE}" "${SSH_BIN_WIN}" -N -o StrictHostKeyChecking=accept-new -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} >> "${LOG_FILE_WIN}" 2>&1
+"${SSHPASS_BIN_WIN}" -f "${WIN_PASSFILE}" "${SSH_BIN_WIN}" -N -o StrictHostKeyChecking=accept-new -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} -L ${DASH_WS_LOCAL_PORT}:${ROBOT_IP}:${DASH_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} >> "${LOG_FILE_WIN}" 2>&1
 echo [%date% %time%] tunnel exited, restarting in 5s >> "${LOG_FILE_WIN}"
 timeout /t 5 /nobreak >nul
 goto loop
@@ -833,9 +848,9 @@ linux)
     echo "No auto-start mechanism set up for plain Linux laptops - use a"
     echo "systemd --user unit or cron @reboot to persist this command:"
     if [ "$AUTH_CHOICE" = "1" ]; then
-        echo "  ssh -i $KEY -N -o BatchMode=yes -L ${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST}"
+        echo "  ssh -i $KEY -N -o BatchMode=yes -L ${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} -L ${DASH_WS_LOCAL_PORT}:${ROBOT_IP}:${DASH_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST}"
     else
-        echo "  sshpass -f $PASSFILE ssh -N -L ${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST}"
+        echo "  sshpass -f $PASSFILE ssh -N -L ${LOCAL_PORT}:localhost:${REMOTE_PORT} -L ${WEB_LOCAL_PORT}:${ROBOT_IP}:${WEB_REMOTE_PORT} -L ${PANELS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_REMOTE_PORT} -L ${PANELS_WS_LOCAL_PORT}:${ROBOT_IP}:${PANELS_WS_REMOTE_PORT} -L ${DASH_WS_LOCAL_PORT}:${ROBOT_IP}:${DASH_WS_REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST}"
     fi
     echo "Auto-update is not implemented for this path - it's a manual command, not a managed service."
     ;;
@@ -878,7 +893,7 @@ if [ "$PLATFORM" = "mac" ]; then
     # first. Under --auto a failed health check exits 1, which makes the nightly
     # updater refuse to bump VERSION - so a filter that false-fails on a healthy
     # tunnel would silently stop all updates.
-    for CHECK_PORT in "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT"; do
+    for CHECK_PORT in "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT" "$DASH_WS_LOCAL_PORT"; do
         if ! lsof -nP -iTCP:"$CHECK_PORT" -sTCP:LISTEN -Fc 2>/dev/null | grep -qx 'cssh'; then
             warning "port $CHECK_PORT is not held by the tunnel's ssh - that web tool will not reach the Control Hub."
             HEALTH_OK=0
@@ -886,7 +901,7 @@ if [ "$PLATFORM" = "mac" ]; then
     done
 elif [ "$PLATFORM" = "windows" ]; then
     sleep 3
-    for CHECK_PORT in "$LOCAL_PORT" "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT"; do
+    for CHECK_PORT in "$LOCAL_PORT" "$WEB_LOCAL_PORT" "$PANELS_LOCAL_PORT" "$PANELS_WS_LOCAL_PORT" "$DASH_WS_LOCAL_PORT"; do
         if ! command -v netstat >/dev/null 2>&1 || ! netstat -ano 2>/dev/null | grep -q ":${CHECK_PORT} .*LISTENING"; then
             warning "port $CHECK_PORT is not listening - tunnel did not come up cleanly."
             HEALTH_OK=0
@@ -919,7 +934,7 @@ else
     else
         warning "Setup ran, but the tunnel is NOT confirmed healthy"
         echo "One or more forwarded ports never came up. Likely cause: something else is"
-        echo "already bound to one of ${LOCAL_PORT}/${WEB_LOCAL_PORT}/${PANELS_LOCAL_PORT}/${PANELS_WS_LOCAL_PORT} -"
+        echo "already bound to one of ${LOCAL_PORT}/${WEB_LOCAL_PORT}/${PANELS_LOCAL_PORT}/${PANELS_WS_LOCAL_PORT}/${DASH_WS_LOCAL_PORT} -"
         echo "ExitOnForwardFailure kills the WHOLE tunnel if even one forward fails, so the"
         echo "adb forward can be down even though only the web-interface port collided."
         case "$PLATFORM" in
