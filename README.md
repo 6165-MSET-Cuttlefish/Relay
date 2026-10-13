@@ -1,6 +1,4 @@
-# Relay
-**IT LET'S YOU UPLOAD CODE WITHOUT BEING CONNECTED TO ROBOT WIFI AND AVOID ADB HASSLES**
-
+# Relay + 
 
 Relay lets more than one person on a FTC team use Android Studio with one REV Control Hub at
 the same time while connected to your home WiFi.  Each laptop sees the Control Hub as an Android device and can

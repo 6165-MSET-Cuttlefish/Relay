@@ -110,7 +110,7 @@ else
     section "=== ADB Bridge Tunnel Setup ==="
     read -rp "Remote host (IP, Tailscale address, or hostname): " REMOTE_HOST
     [ -z "$REMOTE_HOST" ] && { echo "Aborting."; exit 1; }
-    read -rp 'Remote username (username that you use to log into the remote host ex: "bob" if you log in as bob): ' REMOTE_USER
+    read -rp 'Remote username (username that you use to log into the remote host ex: "cuttlefish" if you log in as cuttlefish): ' REMOTE_USER
     [ -z "$REMOTE_USER" ] && { echo "Aborting."; exit 1; }
     REMOTE_PORT="5037"
     LOCAL_PORT="5037"
@@ -136,7 +136,7 @@ else
     DASH_WS_REMOTE_PORT="8000"
 
     echo ""
-    important "Auth method:"
+    important "Auth Method:"
     important "  1) SSH key (recommended - required for auto-update)"
     important "  2) Password (auto-update will NOT be set up for this tunnel)"
     read -rp "Choice [1]: " AUTH_CHOICE
