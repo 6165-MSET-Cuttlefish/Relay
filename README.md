@@ -158,6 +158,22 @@ FTC Dashboard's live data (op modes, telemetry, configuration) uses a second
 connection on port 8000, which Relay also forwards. Keep local port 8000 free:
 if another program is using it, the whole tunnel fails to start.
 
+## Change the robot Wi-Fi
+
+If you switch Control Hubs or change the hub's Wi-Fi name or password, you do
+not need to re-run the full installer. On the bridge, run:
+
+```bash
+cd Relay/bridge
+sudo bash change-robot-wifi.sh
+```
+
+It asks only for the new Wi-Fi name and password. Press Enter at the name
+prompt to keep the current name and change only the password. Everything else
+stays as it was, and laptops need no changes. The old Wi-Fi profile is kept
+with auto-connect turned off, so you can switch back by running the script
+again.
+
 ## Updates
 
 Relay checks for updates overnight, around 3 AM. An update is applied only
